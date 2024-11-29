@@ -11,7 +11,7 @@ CFLAGS	+= -Iinclude -c
 CPP	+= -Iinclude
 
 
-OBJECTS=boot/head.o kernel/kernel.o init/main.o lib/lib.o mm/mm.o
+OBJECTS=boot/head.o kernel/kernel.o init/main.o lib/lib.o mm/mm.o kernel/chr_drv/chr_drv.o fs/fs.o
 disk:image
 	dd if=image of=floppy.img
 image:boot/boot.bin boot/setup.bin tools/system
@@ -33,8 +33,12 @@ boot/head.o:boot/head.asm
 	$(AS) -f elf -o $@ $<
 init/main.o:init/main.c
 	$(CC) $(CFLAGS) -o $@ $<
+kernel/chr_drv/chr_drv.o:
+	(cd kernel/chr_drv;make)
 kernel/kernel.o:
 	(cd kernel;make)
+fs/fs.o:
+	(cd fs;make)
 lib/lib.o:
 	(cd lib;make)
 mm/mm.o:
@@ -57,3 +61,5 @@ clean:
 	(cd kernel;make clean)
 	(cd lib;make clean)
 	(cd mm;make clean)
+	(cd kernel/chr_drv;make clean)
+	(cd fs;make clean)

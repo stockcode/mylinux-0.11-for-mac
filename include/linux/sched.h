@@ -5,23 +5,35 @@
 #ifndef KERNEL_SCHED_H
 #define KERNEL_SCHED_H
 #include <linux/head.h>
+#include <linux/fs.h>
+#include<signal.h>
+
+#define HZ 100
+#define LATCH (1193180/HZ)
+
 
 #define NR_TASKS 64
+#define FIRST_TASK task[0]
+#define LAST_TASK task[NR_TASKS-1]
+
+
 #define FIRST_TSS_ENTRY 4
 #define FIRST_LDT_ENTRY (FIRST_TSS_ENTRY+1)
 
+extern void schedule(void);
+extern void interruptible_sleep_on(struct task_struct ** p);
+extern void wake_up(struct task_struct ** p);
 
 #define _TSS(n) ((((unsigned long)n)<<4)+(FIRST_TSS_ENTRY<<3))
 #define _LDT(n) ((((unsigned long)n)<<4)+(FIRST_LDT_ENTRY<<3))
 #define lldt(n) __asm__("lldt %%ax"::"a"(_LDT(n)))
 #define ltr(n) __asm__("ltr %%ax"::"a"(_TSS(n)))
 
-#define TASK_RUNNING 0
-#define TASK_STOPPED 4
-
-#ifndef NULL
-#define NULL ((void *) 0)
-#endif
+#define TASK_RUNNING		0
+#define TASK_INTERRUPTIBLE	1
+#define TASK_UNINTERRUPTIBLE	2
+#define TASK_ZOMBIE		3
+#define TASK_STOPPED		4
 
 struct tss_struct {
 	long	back_link;	/* 16 high bits zero */
@@ -50,30 +62,68 @@ struct tss_struct {
 };
 
 struct task_struct {
-    long pid;
+/* these are hardcoded - don't touch */
+    long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
     long counter;
     long priority;
-    long state;
+    long signal;
+    struct sigaction sigaction[32];
+    long blocked;	/* bitmap of masked signals */
+/* various fields */
+    int exit_code;
+    unsigned long start_code,end_code,end_data,brk,start_stack;
+    long pid,father,pgrp,session,leader;
+    unsigned short uid,euid,suid;
+    unsigned short gid,egid,sgid;
+    long alarm;
+    long utime,stime,cutime,cstime,start_time;
+    unsigned short used_math;
+/* file system info */
+    int tty;		/* -1 if no tty, so it must be signed */
+    unsigned short umask;
+    struct m_inode * pwd;
+    struct m_inode * root;
+    struct m_inode * executable;
+    unsigned long close_on_exec;
+    struct file * filp[NR_OPEN];
+/* ldt for this task 0 - zero 1 - cs 2 - ds&ss */
     struct desc_struct ldt[3];
+/* tss for this task */
     struct tss_struct tss;
 };
 
+/*
+ *  INIT_TASK is used to set up the first task table, touch at
+ * your own risk!. Base=0, limit=0x9ffff (=640kB)
+ */
 #define INIT_TASK \
-{  \
-    0,15,15,0, \
-    /*ldt*/{   \
-        {0,0},  \
-        {0xfff,0x00c0fa00}, \
-        {0xfff,0x00c0f200}, \
-    },            \
-    /*tss*/	{     \
-    0,(long)&init_task+PAGE_SIZE,0x10,0,0,0,0,(long)&pg_dir,\
+/* state etc */	{ 0,15,15, \
+/* signals */	0,{{},},0, \
+/* ec,brk... */	0,0,0,0,0,0, \
+/* pid etc.. */	0,-1,0,0,0, \
+/* uid etc */	0,0,0,0,0,0, \
+/* alarm */	0,0,0,0,0,0, \
+/* math */	0, \
+/* fs info */	-1,0022,NULL,NULL,NULL,0, \
+/* filp */	{NULL,}, \
+	{ \
+		{0,0}, \
+/* ldt */	{0x9f,0xc0fa00}, \
+		{0x9f,0xc0f200}, \
+	}, \
+/*tss*/	{0,PAGE_SIZE+(long)&init_task,0x10,0,0,0,0,(long)&pg_dir,\
 	 0,0,0,0,0,0,0,0, \
-	 0,0,0,0,0,0,0,0, \
+	 0,0,0x17,0x17,0x17,0x17,0x17,0x17, \
 	 _LDT(0),0x80000000, \
 	}, \
 }
 
+#define str(n) \
+__asm__("str %%ax\n\t" \
+	"subl %2,%%eax\n\t" \
+	"shrl $4,%%eax" \
+	:"=a" (n) \
+	:"a" (0),"i" (FIRST_TSS_ENTRY<<3))
 /*
  *	switch_to(n) should switch tasks to task nr n, first
  * checking that n isn't the current task, in which case it does nothing.
@@ -97,4 +147,36 @@ extern struct task_struct* task[NR_TASKS];
 extern void sched_init();
 
 extern struct task_struct* current;
+extern long volatile jiffies;
+extern long startup_time;
+
+#ifndef PANIC
+void panic(const char * str);
+#endif
+extern int tty_write(unsigned minor,char * buf,int count);
+
+#define set_base(ldt,base) _set_base( ((char *)&(ldt)) , (base) )
+#define set_limit(ldt,limit) _set_limit( ((char *)&(ldt)) , (limit-1)>>12 )
+
+static inline unsigned long _get_base(char * addr)
+{
+    unsigned long __base;
+    __asm__("movb %3,%%dh\n\t"
+            "movb %2,%%dl\n\t"
+            "shll $16,%%edx\n\t"
+            "movw %1,%%dx"
+            :"=&d" (__base)
+            :"m" (*((addr)+2)),
+    "m" (*((addr)+4)),
+    "m" (*((addr)+7)));
+    return __base;
+}
+
+#define get_base(ldt) _get_base( ((char *)&(ldt)) )
+
+#define get_limit(segment) ({ \
+unsigned long __limit; \
+__asm__("lsll %1,%0\n\tincl %0":"=r" (__limit):"r" (segment)); \
+__limit;})
+
 #endif //KERNEL_SCHED_H

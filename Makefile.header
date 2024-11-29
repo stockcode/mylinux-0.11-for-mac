@@ -19,12 +19,13 @@ endif
 
 
 ifeq ($(UNAME), Darwin)
+    GAS	= x86_64-elf-as --32
 	AS	= nasm
 	LD	= x86_64-elf-ld
 	#LDFLAGS = -m elf_i386 -x 
 	LDFLAGS = -m elf_i386
 	CC	= x86_64-elf-gcc
-	CFLAGS  = -gdwarf-2 -g -O1 -m32 -fno-builtin -fno-stack-protector -nostdinc
+	CFLAGS  = -gdwarf-2 -g -m32 -fno-builtin -fno-stack-protector -nostdinc
 
 	#CPP	= i386-elf-cpp-4.3.2 -nostdinc
 	CPP	= x86_64-elf-cpp -nostdinc

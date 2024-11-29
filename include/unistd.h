@@ -1,9 +1,10 @@
 #ifndef _UNISTD_H
 #define _UNISTD_H
 
-#define __NR_fork	2
+#include<sys/types.h>
 
-extern int errno;
+#define __NR_fork	2
+#define __NR_write	4
 
 #define _syscall0(type,name) \
   type name(void) \
@@ -84,3 +85,7 @@ return -1; \
 }
 
 #endif
+
+extern int errno;
+
+int write(int fildes, const char * buf, off_t count);

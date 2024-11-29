@@ -1,11 +1,11 @@
 include ../Makefile.header
 
-CFLAGS +=-Wall -O1 -I../include -c
+CFLAGS +=-Wall -I../include -c
 LDFLAGS	+= -Ttext 0
 
 OBJECTS=$(patsubst %.c,%.o,$(wildcard *.c))
 OBJECTS+=$(patsubst %.asm,%.o,$(wildcard *.asm))
-kernel.o:$(OBJECTS)
+fs.o:$(OBJECTS)
 	$(LD) $(LDFLAGS) -o $@ -r $^
 %.o:%.c
 	$(CC) $(CFLAGS) -o $@ $<

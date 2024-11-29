@@ -5,6 +5,9 @@
 #ifndef KERNEL_KERNEL_H
 #define KERNEL_KERNEL_H
 
-volatile void panic(const char* s);
+void panic(const char * str);
+int printf(const char * fmt, ...);
+int printk(const char * fmt, ...);
+int tty_write(unsigned ch,char * buf,int count);
 
 #endif //KERNEL_KERNEL_H

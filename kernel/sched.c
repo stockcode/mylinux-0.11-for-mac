@@ -1,13 +1,31 @@
 #include<linux/mm.h>
 #include<linux/sched.h>
+#include<linux/kernel.h>
 #include<asm/system.h>
 #include<asm/io.h>
 #include<linux/head.h>
 #include<klib.h>
 #include<linux/sys.h>
 
-#define HZ 100
-#define LATCH (1193180/HZ)
+void show_task(int nr,struct task_struct * p)
+{
+    int i,j = 4096-sizeof(struct task_struct);
+
+    printk("%d: pid=%d, state=%d, ",nr,p->pid,p->state);
+    i=0;
+    while (i<j && !((char *)(p+1))[i])
+        i++;
+    printk("%d (of %d) chars free in kernel stack\n\r",i,j);
+}
+
+void show_stat(void)
+{
+    int i;
+
+    for (i=0;i<NR_TASKS;i++)
+        if (task[i])
+            show_task(i,task[i]);
+}
 
 extern void timer_interrupt();
 
@@ -22,18 +40,80 @@ union task_union{
 };
 static union task_union init_task={INIT_TASK,};
 
+long volatile jiffies=0;
+long startup_time=0;
 struct task_struct* task[NR_TASKS] = {&(init_task.task),};
 struct task_struct* current = &(init_task.task);
 
 extern int count;
 void do_timer() {
-//    disp_str("\nIn timer interrupt");
-//    count++;
-//    if (count > 100) {
-//        count = 0;
-//        clear();
-//    }
-//    for (int i = 0; i < 10000; i++);
+    schedule();
+}
+
+void interruptible_sleep_on(struct task_struct **p)
+{
+    struct task_struct *tmp;
+
+    if (!p)
+        return;
+    if (current == &(init_task.task))
+        panic("task[0] trying to sleep");
+    tmp=*p;
+    *p=current;
+    repeat:	current->state = TASK_INTERRUPTIBLE;
+    schedule();
+    if (*p && *p != current) {
+        (**p).state=0;
+        goto repeat;
+    }
+    *p=NULL;
+    if (tmp)
+        tmp->state=0;
+}
+
+void wake_up(struct task_struct **p)
+{
+    if (p && *p) {
+        (**p).state=0;
+        *p=NULL;
+    }
+}
+
+/*
+ *  'schedule()' is the scheduler function. This is GOOD CODE! There
+ * probably won't be any reason to change this, as it should work well
+ * in all circumstances (ie gives IO-bound processes good response etc).
+ * The one thing you might take a look at is the signal-handler code here.
+ *
+ *   NOTE!!  Task 0 is the 'idle' task, which gets called when no other
+ * tasks can run. It can not be killed, and it cannot sleep. The 'state'
+ * information in task[0] is never used.
+ */
+void schedule(void)
+{
+    int i,next,c;
+    struct task_struct ** p;
+
+/* this is the scheduler proper: */
+
+    while (1) {
+        c = -1;
+        next = 0;
+        i = NR_TASKS;
+        p = &task[NR_TASKS];
+        while (--i) {
+            if (!*--p)
+                continue;
+            if ((*p)->state == TASK_RUNNING && (*p)->counter > c)
+                c = (*p)->counter, next = i;
+        }
+        if (c) break;
+        for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
+            if (*p)
+                (*p)->counter = ((*p)->counter >> 1) +
+                                (*p)->priority;
+    }
+    switch_to(next);
 }
 
 

@@ -11,7 +11,7 @@ section .text
     mov bp,msg1
     mov ax,0x1301
     mov bx,0x000C
-    mov cx,21
+    mov cx,23
     int 0x10
 ;get cursor position.
     mov ax, INITSEG
@@ -177,4 +177,4 @@ gdt_48:
     dw  512+gdt,0x9 ; gdt base=0X9xxxx
 
 msg1:
-    db 'I am in setup haha...'
+    db 'Now we are in setup ...'

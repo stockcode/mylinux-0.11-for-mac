@@ -1,7 +1,7 @@
-#ifndef _ERRNO_H
-#define _ERRNO_H
+#ifndef ERRNO_H
+#define ERRNO_H
 
-int errno;
+extern int errno;
 
 #define ERROR		99
 #define EPERM		 1
