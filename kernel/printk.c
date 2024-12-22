@@ -13,10 +13,20 @@
 #include <stddef.h>
 
 #include <linux/kernel.h>
+#include <string.h>
+#include<asm/segment.h>
 
 static char buf[1024];
 
 extern int vsprintf(char * buf, const char * fmt, va_list args);
+
+char * get_from_fs(const char * str)
+{
+    char * to = "";
+    for (int j=0 ; j< strlen(str) ; j++)
+        *(to+j) = get_fs_byte(str+j);
+    return to;
+}
 
 int printk(const char *fmt, ...)
 {

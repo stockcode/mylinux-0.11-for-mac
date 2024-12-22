@@ -8,14 +8,14 @@ add_library(kernel OBJECT
         kernel/fork.c
         kernel/traps.c
         kernel/vsprintf.c
-        lib/cklib.c
         lib/string.c
         mm/memory.c
         fs/read_write.c
         fs/char_dev.c
         kernel/chr_drv/tty_io.c
         kernel/chr_drv/console.c
-        kernel/system_call.asm
+        include/fcntl.h
+        include/time.h
 )
 
 target_include_directories(kernel PRIVATE

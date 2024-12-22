@@ -4,14 +4,15 @@ CFLAGS +=-Wall -O1 -I../include -c
 LDFLAGS	+= -Ttext 0
 
 OBJECTS=$(patsubst %.c,%.o,$(wildcard *.c))
-OBJECTS+=$(patsubst %.asm,%.o,$(wildcard *.asm))
+OBJECTS+=$(patsubst %.s,%.o,$(wildcard *.s))
 kernel.o:$(OBJECTS)
 	$(LD) $(LDFLAGS) -o $@ -r $^
 %.o:%.c
 	$(CC) $(CFLAGS) -o $@ $<
-%.o:%.asm	
-	$(AS) -o $@ -f elf $< -g
+%.o:%.s
+	$(GAS) -o $@ $< -g
 
 .PHONY clean:
 clean:
-	rm -rf *.o	
+	rm -rf *.o
+	@for i in chr_drv blk_drv math; do make clean -C $$i; done

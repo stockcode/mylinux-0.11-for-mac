@@ -1,19 +1,28 @@
-//
-// Created by gengke on 2024/11/23.
-//
+#ifndef _STDARG_H
+#define _STDARG_H
 
-#ifndef KERNEL_STDARG_H
-#define KERNEL_STDARG_H
+typedef char *va_list;
 
-#define STACK_SIZE 4
+/* Amount of space required in an argument list for an arg of type TYPE.
+   TYPE may alternatively be an expression whose type is used.  */
 
-#ifndef NULL
-#define NULL (char*)0
+#define __va_rounded_size(TYPE)  \
+  (((sizeof (TYPE) + sizeof (int) - 1) / sizeof (int)) * sizeof (int))
+
+#ifndef __sparc__
+#define va_start(AP, LASTARG) 						\
+ (AP = ((char *) &(LASTARG) + __va_rounded_size (LASTARG)))
+#else
+#define va_start(AP, LASTARG) 						\
+ (__builtin_saveregs (),						\
+  AP = ((char *) &(LASTARG) + __va_rounded_size (LASTARG)))
 #endif
 
-typedef char* va_list;
-
-#define va_start(AP,n) (AP=((char*)&n + STACK_SIZE))
-#define va_arg(AP,TYPE) (AP+=STACK_SIZE, *((TYPE*)(AP - STACK_SIZE)))
+void va_end (va_list);		/* Defined in gnulib */
 #define va_end(AP)
-#endif //KERNEL_STDARG_H
+
+#define va_arg(AP, TYPE)						\
+ (AP += __va_rounded_size (TYPE),					\
+  *((TYPE *) (AP - __va_rounded_size (TYPE))))
+
+#endif /* _STDARG_H */

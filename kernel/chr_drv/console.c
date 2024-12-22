@@ -664,6 +664,12 @@ void con_init(void)
     outb(a,0x61);
 }
 
+void sysbeepstop(void)
+{
+    /* disable counter 2 */
+    outb(inb_p(0x61)&0xFC, 0x61);
+}
+
 int beepcount = 0;
 
 static void sysbeep(void)
